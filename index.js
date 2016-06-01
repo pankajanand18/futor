@@ -5,10 +5,10 @@ const yargs = require('yargs')
 const fs = require('fs')
 const FB = require('fb')
 let openurl
-try { 
-    openurl = require('openurl')
+try {
+  openurl = require('openurl')
 } catch (e) {
-    openurl = false
+  openurl = false
 }
 const WebSocket = require('ws')
 const YAML = require('js-yaml')
@@ -24,6 +24,7 @@ const TOKEN_SERVER_URL = 'wss://futor.con.com/ws'
 const privacyEnum = [ 'SELF', 'ALL_FRIENDS', 'FRIENDS_OF_FRIENDS', 'EVERYONE', 'CUSTOM' ]
 
 fields.getposts = fields.getpost
+fields.impressions = fields.getpost
 
 //FB.api = function (a, b, c) { //Fake, for testing.
 //  c({"name":"Allen Luce","id":"10209681603216006"})
@@ -41,7 +42,7 @@ const callFB = function () {
   const argv = args.shift()
 
   let callafter
-  if (typeof args[args.length-1] === 'function') {
+  if (typeof args[args.length - 1] === 'function') {
     callafter = args.pop()
   }
   args.push(function (data) {
@@ -56,10 +57,7 @@ const callFB = function () {
     }
     process.exit(0)
   })
-  console.log(args)
-//  args[args.length-1]({'what':'no'})
   FB.api(...args)
-//  FB.api.apply(FB, args)
 }
 
 class FF {
@@ -92,6 +90,9 @@ class FF {
     if (!opts.privacy) { // Not specified in file.
       opts.privacy = { value: argv.privacy }
     }
+    if (!opts.publish) { // Not specified in file.
+      opts.published = argv.publish
+    }
     if (!opts.fields) { // Not specified in file.
       if (argv.fields) { // Given on command line?
         opts.fields = argv.fields
@@ -104,9 +105,29 @@ class FF {
   }
 
   static setAccessToken (argv) {
+    if (argv.token) {
+      FB.setAccessToken(argv.token)
+      return
+    }
     try {
       const access_token = fs.readFileSync(argv.tokenfile).toString('utf-8')
       FB.setAccessToken(access_token)
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        console.error(`Auth token file ${argv.tokenfile} not found. Use 'auth' command to create it.`)
+        process.exit(1)
+      }
+      console.error(e)
+    }
+  }
+  
+  static withAccessToken (argv) {
+    if (argv.token) {
+      return FB.withAccessToken(argv.token)
+    }
+    try {
+      const access_token = fs.readFileSync(argv.tokenfile).toString('utf-8')
+      return FB.withAccessToken(access_token)
     } catch (e) {
       if (e.code === 'ENOENT') {
         console.error(`Auth token file ${argv.tokenfile} not found. Use 'auth' command to create it.`)
@@ -130,13 +151,13 @@ class FF {
       // flags.masked will be set if the data was masked.
       const msgs = data.split(' ')
       switch (msgs[0]) {
-      case 'url':
-	  if (openurl) {
-              openurl.open(msgs[1])
-	  } else {
-	      console.log(`open ${msgs[1]} in your browser`)
-	      console.log('Leave futor running while you do so.')
-	  }
+        case 'url':
+          if (openurl) {
+            openurl.open(msgs[1])
+          } else {
+            console.log(`open ${msgs[1]} in your browser`)
+            console.log('Leave futor running while you do so.')
+          }
           break
         case 'token':
           const access_token = msgs[1]
@@ -163,18 +184,18 @@ class FF {
   */
 
   static getposts (argv) {
-    // /{user-id}/feed but just for this person.
-    callFB(argv, '/me/posts', FF.preProcess(argv))
+    const opts = FF.preProcess(argv)
+    let page = 'me'
+    if (argv.page) {
+      page = argv.page
+      delete opts.privacy
+    }
+    callFB(argv, `/${page}/posts`, opts)
   }
 
   static getpost (argv) {
     // /{user-id}/feed but just for this person.
-    callFB(argv, argv.postId, FF.preProcess(argv), function (Pdata) {
-      callFB(argv, `/${argv.postId}/insights/page_views_total`, function (data) {
-        outData(argv, Pdata)
-        outData(argv, data)
-      })
-    })
+    callFB(argv, argv.postId, FF.preProcess(argv))
   }
 
   // Input filter should:
@@ -186,13 +207,35 @@ class FF {
   // Then edit it.  Then take the edited version and validate it. Then post it.
 
   static post (argv) {
+    // Check for page token
+    if (argv.aspage) { // Get page token
+      const pfb = FF.withAccessToken(argv)
+      pfb.api(`/${argv.page}`, {fields: ['access_token']}, function (data) {
+        argv.page_token = data.access_token
+        FF.do_post(argv)
+      })
+    } else {
+      FF.do_post(argv)
+    }
+  }
+
+  static do_post (argv) {
     const opts = FF.preProcess(argv)
+    let page = 'me'
     if (argv.message) {
       opts.message = argv.message
     }
     if (argv.link) {
       opts.link = argv.link
     }
+    if (argv.page) {
+      page = argv.page
+      delete opts.privacy
+    }
+    if (argv.page_token) {
+      opts.access_token = argv.page_token
+    }
+    
     if (argv.interactive) { // Fill opts based on questions.
       var questions = [
         {
@@ -200,6 +243,11 @@ class FF {
           name: 'type',
           message: 'What page is this for?',
           choices: ['mine', 'other']
+        },
+        {
+          type: 'input',
+          name: 'page',
+          message: 'Page id: '
         },
         {
           type: 'confirm',
@@ -237,25 +285,24 @@ class FF {
         if (answers.link) {
           opts.link = answers.link
         }
-        callFB(argv, '/me/feed', 'POST', opts)
+        if (answers.type === 'other') {
+          page = answers.page
+          delete opts.privacy
+        }
+        callFB(argv, `/${page}/feed`, 'POST', opts)
       })
     } else {
-      // Is this to a user page, other page, and event, or a group?
-      // What's the (user, other, event, group) id?  Type "dir" to
-      // see your choices.
-      // Based on each, go through fields.
-
-      // If it's a page, choose: "post as you/post as page?"  if the latter, get a page token.
-
-      // Message fields..?
-      // Mes
-      console.log(opts)
-      callFB(argv, '/me/feed', 'POST', opts)
+      callFB(argv, `/${page}/feed`, 'POST', opts)
     }
   }
 
   static updatepost (argv) {
-    callFB(argv, `/${argv.postId}`, 'POST', FF.preProcess(argv))
+    const opts = FF.preProcess(argv)
+    delete opts.privacy
+    if (argv.publish) {
+      opts.is_published = argv.publish
+    }
+    callFB(argv, `/${argv.postId}`, 'POST', opts)
   }
 
   static me (argv) {
@@ -271,8 +318,28 @@ class FF {
   }
 
   static insights (argv) {
-    FF.setAccessToken(argv)
-    callFB(argv, `/${argv.objectId}/insights`)
+    callFB(argv, `/${argv.objectId}/insights`, FF.preProcess(argv))
+  }
+
+  static impressions (argv) {
+    const opts = FF.preProcess(argv)
+    let page = 'me'
+    if (argv.pageId) {
+      page = argv.pageId
+      delete opts.privacy
+    }
+    callFB(argv, `/${page}/posts`, opts, function (data) {
+      for (let post of data.data) {
+        console.log(post)
+        console.log(post.id)
+        console.log(post.message)
+        const unique = post.insights.data.filter((item) => {
+          return item.name === 'post_impressions_unique'
+        })
+        console.log(unique[0].values[0].value)
+      }
+      //console.log(JSON.stringify(data, null, 4))
+    })
   }
 
   static isFile (filename) {
@@ -335,11 +402,22 @@ if (!module.parent) {
       describe: 'Fields to fetch',
       type: 'array'
     })
-    .global(['t', 'p', 'j', 'y', 'f', 'skeleton', 'jskeleton'])
+    .option('publish', {
+      describe: 'Publish this post',
+      boolean: true,
+      default: true
+    })
+    .global(['t', 'p', 'j', 'y', 'f', 'skeleton', 'jskeleton', 'publish'])
     .command('auth', 'Obtain authentication token from Facebook', noOpts, FF.auth)
     .command('me', 'Get information about yourself', noOpts, FF.me)
     .command('accounts', 'Show Facebook Pages you administer', noOpts, FF.accounts)
-    .command('getposts', 'Get all posts on your wall', noOpts, FF.getposts)
+    .command('getposts', 'Get all posts on your wall', (yargs) => {
+      return yargs
+        .option('page', {
+          describe: 'Page ID of post',
+          default: 'me'
+        })
+    }, FF.getposts)
     .command('getpost <postId>', 'Get a particular post on your wall', noOpts, FF.getpost)
     .command('post [-i]', 'Create a post', (yargs) => {
       return yargs
@@ -353,10 +431,18 @@ if (!module.parent) {
         .option('link', {
           describe: 'URL of link to post'
         })
+        .option('page', {
+          describe: 'Page ID of post',
+          default: 'me'
+        })
+        .option('aspage', {
+          describe: 'Post as page, not yourself.'
+        })
     }, FF.post)
     .command('updatepost <postId>', 'Update a post', noOpts, FF.updatepost)
     .command('page <pageId>', 'Get info on a page', noOpts, FF.page)
     .command('insights <objectId>', 'Get Facebook Insight info on an object', noOpts, FF.insights)
+    .command('impressions <pageId>', 'Get 28-day impression count on a page', noOpts, FF.impressions)
     .command('postphoto <imageFile|url>', 'Upload an image', (yargs) => {
       return yargs
         .option('caption', {
