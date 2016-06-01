@@ -1,0 +1,16 @@
+#
+# Your message, long-form
+#
+message: >-
+  Your message goes here. Multiple lines
+  are converted into single lines.
+
+  A double-newline is converted into a single newline.
+link: http://example.com/alink
+place: Philadelphia. PA
+tags:   # Comma-separated list of users.
+privacy:
+  # Pick one value, delete the rest.
+  value: EVERYONE|ALL_FRIENDS|FRIENDS_OF_FRIENDS|CUSTOM|SELF
+  allow: # A list of users you want to allow.
+  deny: # A list of users you want to allow.

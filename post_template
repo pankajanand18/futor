@@ -1,0 +1,54 @@
+icon: 'https://www.facebook.com/images/icons/photo.gif'
+is_hidden: false
+is_published: true
+link: >-
+  https://www.facebook.com/photo.php?fbid=10209662483938036&set=a.10209662491218218.1073741826.1207516158&type=3
+message: >-
+  First is a museum where they show you how it was done in the olden days.
+  Then they take you into the production room to see how far they've progressed.
+name: Photos from Allen Luce's post
+picture: >-
+  https://scontent.xx.fbcdn.net/v/t1.0-0/s130x130/13254507_10209662483938036_6493570540608466469_n.jpg?oh=9679219274d0d0e36124a0e2f32686d7&oe=57DCA7F1
+privacy:
+  allow: ''
+  deny: ''
+  description: Public
+  friends: ''
+  value: EVERYONE
+attachments:
+  data:
+    - subattachments:
+        data:
+          - media:
+              image:
+                height: 480
+                src: >-
+                  https://scontent.xx.fbcdn.net/v/t1.0-0/p480x480/13254507_10209662483938036_6493570540608466469_n.jpg?oh=10e7dbdccda515f3bf89809b27dbc6b9&oe=57CCC1E2
+                width: 720
+            target:
+              id: '10209662483938036'
+              url: >-
+                https://www.facebook.com/photo.php?fbid=10209662483938036&set=p.10209662483938036&type=3
+            type: photo
+            url: >-
+              https://www.facebook.com/photo.php?fbid=10209662483938036&set=p.10209662483938036&type=3
+          - media:
+              image:
+                height: 480
+                src: >-
+                  https://scontent.xx.fbcdn.net/v/t1.0-0/p480x480/13226855_10209662484418048_6921622328065160670_n.jpg?oh=cb79ea466995f1aa39bf4369571c82a8&oe=57DB1379
+                width: 720
+            target:
+              id: '10209662484418048'
+              url: >-
+                https://www.facebook.com/photo.php?fbid=10209662484418048&set=p.10209662484418048&type=3
+            type: photo
+            url: >-
+              https://www.facebook.com/photo.php?fbid=10209662484418048&set=p.10209662484418048&type=3
+      target:
+        id: '10209662491258219'
+        url: 'https://www.facebook.com/allen.luce/posts/10209662491258219'
+      title: Photos from Allen Luce's post
+      type: album
+      url: 'https://www.facebook.com/allen.luce/posts/10209662491258219'
+

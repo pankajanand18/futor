@@ -1,0 +1,8 @@
+# Leading comment
+message: >-
+  Multi-line message.
+link: http://example.com/alink
+privacy:
+  value: # In-line comment.
+    - EVERYONE
+    - ALL_FRIENDS
