@@ -23,6 +23,7 @@
     "inquirer": "^1.0.3",
     "js-yaml": "^3.6.1",
     "mmmagic": "^0.4.4",
+    "moment": "^2.13.0",
     "nodemon": "^1.9.2",
     "nyc": "^6.4.4",
     "openurl": "^1.1.1",

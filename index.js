@@ -17,6 +17,7 @@ const validUrl = require('valid-url')
 const rw = require('rw')
 const inquirer = require('inquirer')
 const fields = require('./fields')
+const moment = require('moment')
 
 const TOKEN_FILE = expandHomeDir('~/.futor_token')
 const TOKEN_SERVER_URL = 'wss://futor.con.com/ws'
@@ -53,6 +54,7 @@ const callFB = function () {
     }
     process.exit(0)
   })
+  console.log(JSON.stringify(args))
   FB.api(...args)
 }
 
@@ -194,6 +196,18 @@ class FF {
     let page = 'me'
     if (argv.message) {
       opts.message = argv.message
+    }
+    if (argv.schedule) {
+      let schedule
+      schedule = moment(argv.schedule)
+//      if (schedule.
+//        schedule = moment().add(moment.duration(schedule))
+//      console.log(schedule)
+//      process.exit(0)
+      opts.scheduled_publish_time = schedule.unix()
+    }
+    if (argv.countries) {
+      opts.targeting = { countries: argv.countries[0] }
     }
     if (argv.link) {
       opts.link = argv.link
@@ -404,9 +418,17 @@ if (!module.parent) {
           describe: 'Page ID of post',
           default: 'me'
         })
+        .option('schedule', {
+          describe: 'Schedule post for later publishing.'
+        })
         .option('aspage', {
           describe: 'Post as page, not yourself.'
         })
+        .option('countries', {
+          describe: 'Countries to restrict this post to.',
+          type: 'array'
+        })
+      
     }, FF.post)
     .command('updatepost <postId>', 'Update a post', noOpts, FF.updatepost)
     .command('page <pageId>', 'Get info on a page', noOpts, FF.page)
