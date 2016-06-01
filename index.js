@@ -4,7 +4,12 @@ const expandHomeDir = require('expand-home-dir')
 const yargs = require('yargs')
 const fs = require('fs')
 const FB = require('fb')
-const openurl = require('openurl')
+let openurl
+try { 
+    openurl = require('openurl')
+} catch (e) {
+    openurl = false
+}
 const WebSocket = require('ws')
 const YAML = require('js-yaml')
 const path = require('path')
@@ -125,8 +130,13 @@ class FF {
       // flags.masked will be set if the data was masked.
       const msgs = data.split(' ')
       switch (msgs[0]) {
-        case 'url':
-          openurl.open(msgs[1])
+      case 'url':
+	  if (openurl) {
+              openurl.open(msgs[1])
+	  } else {
+	      console.log(`open ${msgs[1]} in your browser`)
+	      console.log('Leave futor running while you do so.')
+	  }
           break
         case 'token':
           const access_token = msgs[1]
