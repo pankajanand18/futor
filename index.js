@@ -26,10 +26,6 @@ const privacyEnum = [ 'SELF', 'ALL_FRIENDS', 'FRIENDS_OF_FRIENDS', 'EVERYONE', '
 fields.getposts = fields.getpost
 fields.impressions = fields.getpost
 
-//FB.api = function (a, b, c) { //Fake, for testing.
-//  c({"name":"Allen Luce","id":"10209681603216006"})
-//}
-
 const outData = function (argv, data) {
   if (!argv.jsonoutput) {
     data = YAML.safeDump(data)
@@ -147,8 +143,6 @@ class FF {
       process.exit(1)
     })
     ws.on('message', function (data, flags) {
-      // flags.binary will be set if a binary data is received.
-      // flags.masked will be set if the data was masked.
       const msgs = data.split(' ')
       switch (msgs[0]) {
         case 'url':
@@ -168,21 +162,6 @@ class FF {
     })
   }
 
-  /*
-    - Create regular post to a Facebook page
-    - Create unpublished page post
-    - List posts (published and unpublished)
-    - Show # of viewers ("show the number of people who have viewed each post.")
-  */
-
-  /* For each function, define a filter that'll take the JSON and
-   * convert fields into things that humans can deal with.
-
-   It should have an "edit-output" filter that removes RO fields and
-   converts others to managable forms. And an "edit-input" filter that does the converse.
-
-  */
-
   static getposts (argv) {
     const opts = FF.preProcess(argv)
     let page = 'me'
@@ -194,18 +173,9 @@ class FF {
   }
 
   static getpost (argv) {
-    // /{user-id}/feed but just for this person.
     callFB(argv, argv.postId, FF.preProcess(argv))
   }
-
-  // Input filter should:
-  // - Take photo/attachment links and translate them as appropriate.
-  // Also with icon field?  Link field?  Picture field?
-  // Maybe also have privacy shortforms?
-
-  // If no file is specified, it means write out a skeleton in a temp file
-  // Then edit it.  Then take the edited version and validate it. Then post it.
-
+  
   static post (argv) {
     // Check for page token
     if (argv.aspage) { // Get page token
@@ -330,15 +300,14 @@ class FF {
     }
     callFB(argv, `/${page}/posts`, opts, function (data) {
       for (let post of data.data) {
-        console.log(post)
-        console.log(post.id)
-        console.log(post.message)
         const unique = post.insights.data.filter((item) => {
           return item.name === 'post_impressions_unique'
         })
-        console.log(unique[0].values[0].value)
+        console.log(`ID: ${post.id}
+Message: ${post.message}
+Unique impressions:  ${unique[0].values[0].value}
+`)
       }
-      //console.log(JSON.stringify(data, null, 4))
     })
   }
 
@@ -458,24 +427,3 @@ if (!module.parent) {
 } else {
   module.exports = FF
 }
-
-// More stuff to do:
-// For JSON, support non-pretty (one line)
-
-// Support some handy forms:
-// - One line status update:
-//   fb post "Hey, I'm in this place!" [--type=status] [--target=USER]
-// - Adding pictures:
-//   fb addphoto XXX.jpg [--album=default] [--caption=caption] [--tag=USER[,USER]]
-//
-// - Aliasing users.  "23094823098293" can be "bob"
-//   fb alias 209384298924 bob
-
-/* DONT FORGET!
-
-   Make sure this can run within a web page.
-
-   And deal with full-screen editing for VI/Emacs and whatever people use.
-
-   Maybe look at some means of integrating it into a web-based editor??
-*/
