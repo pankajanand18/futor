@@ -4,7 +4,7 @@ The Facebook command-line app.
 
 ## Installation
 
-You'll need [node.js](nodejs.org) and (npm)[npmjs.org] installed.
+You'll need [node.js](http://nodejs.org) and [npm](http://npmjs.org) installed.
 
 Install the command globally:
 
@@ -20,14 +20,6 @@ To include a link:
 
     futor post --message "Hey guys! Check this out!" --link http://futor.con.com
 
-To include a photo:
-
-    futor post --message "Great image!" --photo my_cat.jpg
-
-You can also use an image link:
-
-    futor post --message "Great image!" --photo http://greatcats.com/my_cat.jpg
-
 If you'd prefer to be prompted through all your options:
 
     futor post -i
@@ -35,3 +27,9 @@ If you'd prefer to be prompted through all your options:
 To upload a photo to your photo library:
 
     futor postphoto --photo my_cat.jpg
+
+Which can also be a link:
+
+    futor postphoto --photo http://greatcats.com/my_cat.jpg
+
+Try `futor -h` for more help.
