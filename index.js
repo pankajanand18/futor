@@ -194,32 +194,26 @@ class FF {
   static do_post (argv) {
     const opts = FF.preProcess(argv)
     let page = 'me'
-    if (argv.message) {
-      opts.message = argv.message
+
+    const transforms = {
+      'message': (a) => a,
+      'link': (a) => a,
+      'page': (a) => {
+        delete opts.privacy
+        return a
+      },
+      'page_token': (a) => [(a) => a, 'access_token'],
+      'schedule': [(a) => moment(a).unix(), 'scheduled_publish_time'], // deal with duration!
+      'countries': [(a) => { return {countries: a[0]}}, 'targeting'],
     }
-    if (argv.schedule) {
-      let schedule
-      schedule = moment(argv.schedule)
-//      if (schedule.
-//        schedule = moment().add(moment.duration(schedule))
-//      console.log(schedule)
-//      process.exit(0)
-      opts.scheduled_publish_time = schedule.unix()
+    for (let key in transforms) {
+      const t = transforms[key]
+      if (typeof t === 'function') {
+        opts[key] = t(argv[key])
+      } else {
+        opts[t[1]] = t[0](argv[key])
+      }
     }
-    if (argv.countries) {
-      opts.targeting = { countries: argv.countries[0] }
-    }
-    if (argv.link) {
-      opts.link = argv.link
-    }
-    if (argv.page) {
-      page = argv.page
-      delete opts.privacy
-    }
-    if (argv.page_token) {
-      opts.access_token = argv.page_token
-    }
-    
     if (argv.interactive) { // Fill opts based on questions.
       var questions = [
         {
