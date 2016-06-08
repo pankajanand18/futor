@@ -3,12 +3,14 @@
 const FB = require('fb')
 const server = require('http').createServer()
 const express = require('express')
+const fs = require('fs')
 const session = require('express-session')
 const config = require('/etc/fb_config.json')
 const ConnectSqlite3 = require('connect-sqlite3')
 const WebSocketServer = require('ws').Server
 const crypto = require('crypto')
 const hdate = require('human-date')
+const morgan = require('morgan')
 
 const app = express()
 
@@ -25,6 +27,9 @@ function randomString () {
   const buf = crypto.pseudoRandomBytes(15)
   return buf.toString('base64').replace(/\+/g, '0').replace(/\//g, '1')
 }
+
+const accessLogStream = fs.createWriteStream('/var/log/fb_auth.log', {flags: 'a'})
+app.use(morgan('combined', {stream: accessLogStream}))
 
 app.use(session({
   secret: config.SESSION_SECRET,
@@ -43,7 +48,7 @@ const wss = new WebSocketServer({ server: server })
 app.get('/gettoken', function (req, res) {
   const url = FB.getLoginUrl({
     client_id: config.CLIENT_ID,
-    scope: 'publish_actions,public_profile,email,user_friends,user_posts,read_insights,manage_pages,pages_manage_instant_articles',
+    scope: 'publish_actions,public_profile,email,user_friends,user_posts,read_insights,manage_pages,pages_manage_instant_articles,publish_pages',
     redirect_uri: config.AUTHURL + '/authorize'
   })
   // Store port for later use.
@@ -63,15 +68,25 @@ app.get('/authorize', function (req, res) {
   }, function (ret) {
     res.set('Connection', 'close')
     if (!ret || ret.error) {
+      if (ret && ret.error) {
+        const e = ret.error
+        connections[req.session.fid].send(`error ${e.type}: ${e.message} (${e.code}) fbtrace_id: ${e.fbtrace_id}`)
+      } else {
+        connections[req.session.fid].send('error no response')
+      }
       res.send(!ret ? 'error occurred' : ret.error)
       return
     }
     const accessToken = ret.access_token
-    connections[req.session.fid].send(`token ${accessToken}`)
+    try {
+      connections[req.session.fid].send(`token ${accessToken}`)
+    } catch (err) {
+      console.error(err)
+    }
     res.type('text/plain')
-    let extra = ""
+    let extra = ''
     if (ret.expires) {
-        extra = `Expires in ${ret.expires} seconds on ${hdate.prettyPrint(ret.expires)} (${hdate.relativeTime(ret.expires)})`
+      extra = `Expires in ${ret.expires} seconds on ${hdate.prettyPrint(ret.expires)} (${hdate.relativeTime(ret.expires)})`
     }
     res.send(`Token saved to ${req.session.file}\n${extra}`)
   })

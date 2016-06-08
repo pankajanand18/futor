@@ -4,12 +4,7 @@ const expandHomeDir = require('expand-home-dir')
 const yargs = require('yargs')
 const fs = require('fs')
 const FB = require('fb')
-let openurl
-try {
-  openurl = require('openurl')
-} catch (e) {
-  openurl = false
-}
+const opn = require('opn')
 const WebSocket = require('ws')
 const YAML = require('js-yaml')
 const path = require('path')
@@ -54,7 +49,7 @@ const callFB = function () {
     }
     process.exit(0)
   })
-  FB.api(...args)
+  FB.api.call(args)
 }
 
 class FF {
@@ -147,18 +142,14 @@ class FF {
       const msgs = data.split(' ')
       switch (msgs[0]) {
         case 'url':
-          if (openurl) {
-            openurl.open(msgs[1])
-          } else {
-            console.log(`open ${msgs[1]} in your browser`)
-            console.log('Leave futor running while you do so.')
-          }
+          opn(msgs[1])
           break
         case 'token':
           const access_token = msgs[1]
           fs.writeFileSync(argv.tokenfile, access_token)
           ws.close()
           console.log(`Token saved to ${argv.tokenfile}`)
+          process.exit()
       }
     })
   }
@@ -234,21 +225,19 @@ class FF {
           name: 'page',
           message: 'Choose a page:',
           when: (answers) => answers.type === 'other' && answers.page === '',
-          choices: (answers) => {
-            return new Promise((resolve, reject) => {
-              FB.api('/me/accounts', (res) => {
-                if (res && res.error) {
-                  reject(res.error)
-                } else {
-                  let choices = []
-                  for (let acc of res.data) {
-                    choices.push(`${acc.name} [${acc.id}]`)
-                  }
-                  resolve(choices)
+          choices: (answers) => new Promise((resolve, reject) => {
+            FB.api('/me/accounts', (res) => {
+              if (res && res.error) {
+                reject(res.error)
+              } else {
+                let choices = []
+                for (let acc of res.data) {
+                  choices.push(`${acc.name} [${acc.id}]`)
                 }
-              })
+                resolve(choices)
+              }
             })
-          }
+          })
         },
         {
           type: 'confirm',
@@ -267,7 +256,7 @@ class FF {
         {
           type: 'confirm',
           name: 'messagep',
-          message: 'add a message?',
+          message: 'Add a message?',
           default: true
         },
         {
@@ -287,6 +276,11 @@ class FF {
         }
       ]
       inquirer.prompt(questions).then(function (answers) {
+        if (!answers.message && !answers.link) {
+          console.error('You have to specify a message or a link or both.')
+          process.exit(1)
+        }
+
         if (answers.message) {
           opts.message = answers.message
         }
@@ -305,7 +299,6 @@ class FF {
           delete opts.privacy
           opts.page = page
         }
-        console.log(opts)
         callFB(argv, `/${page}/feed`, 'POST', opts)
       })
     } else {
@@ -335,7 +328,57 @@ class FF {
   }
 
   static insights (argv) {
-    callFB(argv, `/${argv.objectId}/insights`, FF.preProcess(argv))
+    let page = argv.objectId
+    const opts = FF.preProcess(argv)
+    if (argv.interactive) { // Fill opts based on questions.
+      var questions = [
+        {
+          type: 'list',
+          name: 'type',
+          message: 'What page is this for?',
+          choices: ['mine', 'other']
+        },
+        {
+          type: 'input',
+          name: 'page',
+          message: 'Page id (or blank to see choices):',
+          when: (answers) => answers.type === 'other'
+        },
+        {
+          type: 'list',
+          name: 'page',
+          message: 'Choose a page:',
+          when: (answers) => answers.type === 'other' && answers.page === '',
+          choices: (answers) => new Promise((resolve, reject) => {
+            FB.api('/me/accounts', (res) => {
+              if (res && res.error) {
+                reject(res.error)
+              } else {
+                let choices = []
+                for (let acc of res.data) {
+                  choices.push(`${acc.name} [${acc.id}]`)
+                }
+                resolve(choices)
+              }
+            })
+          })
+        }
+      ]
+      inquirer.prompt(questions).then(function (answers) {
+        page = 'me'
+        if (answers.type === 'other') {
+          page = answers.page
+          let matches = page.match(/ \[(\d+)\]/)
+          if (matches) {
+            page = matches[1]
+          }
+          opts.page = page
+        }
+        callFB(argv, `/${page}/insights`, opts)
+      })
+    } else {
+      callFB(argv, `/${page}/insights`, opts)
+    }
   }
 
   static impressions (argv) {
@@ -464,7 +507,13 @@ if (!module.parent) {
     }, FF.post)
     .command('updatepost <postId>', 'Update a post', noOpts, FF.updatepost)
     .command('page <pageId>', 'Get info on a page', noOpts, FF.page)
-    .command('insights <objectId>', 'Get Facebook Insight info on an object', noOpts, FF.insights)
+    .command('insights [-i] [objectId]', 'Get Facebook Insight info on an object', (yargs) => {
+      return yargs
+        .option('interactive', {
+          alias: 'i',
+          describe: 'Choose object interactively'
+        })
+    }, FF.insights)
     .command('impressions <pageId>', 'Get 28-day impression count on a page', noOpts, FF.impressions)
     .command('postphoto <imageFile|url>', 'Upload an image', (yargs) => {
       return yargs

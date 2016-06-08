@@ -10,15 +10,29 @@ To install the command globally:
 
     npm install -g futor
 
-## Usage
+## Authenticating
 
-Before doing anything, authenticate the app to Facebook:
+Nearly all operations require that you be authenticated. This command
+does this:
 
     futor auth
 
+It will direct you to a Facebook page for giving Futor privileges.
+
+## Getting Stats
+
+Basic data from the Insights API can be obtained:
+
+    futor insights -i
+
+Using `-i` will prompt you for a page to give insights about.
+
+## Posting
+
+
 For a quick post to your wall ("status update"), just do:
 
-    futor post --message "Hey guys! I've got futor going!'
+    futor post --message "Hey guys! I've got Futor going!'
 
 To include a link:
 
