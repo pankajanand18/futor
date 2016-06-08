@@ -1,16 +1,20 @@
 # Futor
 
-The Facebook command-line app.
+Facebook on the command-line!
 
 ## Installation
 
 You'll need [node.js](http://nodejs.org) and [npm](http://npmjs.org) installed.
 
-Install the command globally:
+To install the command globally:
 
     npm install -g futor
 
 ## Usage
+
+Before doing anything, authenticate the app to Facebook:
+
+    futor auth
 
 For a quick post to your wall ("status update"), just do:
 
@@ -20,16 +24,16 @@ To include a link:
 
     futor post --message "Hey guys! Check this out!" --link http://futor.con.com
 
-If you'd prefer to be prompted through all your options:
+If you'd prefer to be lead through the process:
 
     futor post -i
 
 To upload a photo to your photo library:
 
-    futor postphoto --photo my_cat.jpg
+    futor postphoto my_cat.jpg
 
 Which can also be a link:
 
-    futor postphoto --photo http://greatcats.com/my_cat.jpg
+    futor postphoto http://greatcats.com/my_cat.jpg
 
 Try `futor -h` for more help.

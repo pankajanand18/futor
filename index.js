@@ -22,7 +22,7 @@ const moment = require('moment')
 const TOKEN_FILE = expandHomeDir('~/.futor_token')
 const TOKEN_SERVER_URL = 'wss://futor.con.com/ws'
 
-const privacyEnum = [ 'SELF', 'ALL_FRIENDS', 'FRIENDS_OF_FRIENDS', 'EVERYONE', 'CUSTOM' ]
+const privacyEnum = [ 'SELF', 'ALL_FRIENDS', 'FRIENDS_OF_FRIENDS', 'EVERYONE' ]
 
 fields.getposts = fields.getpost
 fields.impressions = fields.getpost
@@ -54,7 +54,6 @@ const callFB = function () {
     }
     process.exit(0)
   })
-  console.log(JSON.stringify(args))
   FB.api(...args)
 }
 
@@ -118,7 +117,7 @@ class FF {
       console.error(e)
     }
   }
-  
+
   static withAccessToken (argv) {
     if (argv.token) {
       return FB.withAccessToken(argv.token)
@@ -177,7 +176,7 @@ class FF {
   static getpost (argv) {
     callFB(argv, argv.postId, FF.preProcess(argv))
   }
-  
+
   static post (argv) {
     // Check for page token
     if (argv.aspage) { // Get page token
@@ -194,7 +193,6 @@ class FF {
   static do_post (argv) {
     const opts = FF.preProcess(argv)
     let page = 'me'
-
     const transforms = {
       'message': (a) => a,
       'link': (a) => a,
@@ -204,9 +202,12 @@ class FF {
       },
       'page_token': (a) => [(a) => a, 'access_token'],
       'schedule': [(a) => moment(a).unix(), 'scheduled_publish_time'], // deal with duration!
-      'countries': [(a) => { return {countries: a[0]}}, 'targeting'],
+      'countries': [(a) => ({countries: a[0]}), 'targeting']
     }
     for (let key in transforms) {
+      if (!argv[key]) {
+        continue
+      }
       const t = transforms[key]
       if (typeof t === 'function') {
         opts[key] = t(argv[key])
@@ -225,7 +226,29 @@ class FF {
         {
           type: 'input',
           name: 'page',
-          message: 'Page id: '
+          message: 'Page id (or blank to see choices):',
+          when: (answers) => answers.type === 'other'
+        },
+        {
+          type: 'list',
+          name: 'page',
+          message: 'Choose a page:',
+          when: (answers) => answers.type === 'other' && answers.page === '',
+          choices: (answers) => {
+            return new Promise((resolve, reject) => {
+              FB.api('/me/accounts', (res) => {
+                if (res && res.error) {
+                  reject(res.error)
+                } else {
+                  let choices = []
+                  for (let acc of res.data) {
+                    choices.push(`${acc.name} [${acc.id}]`)
+                  }
+                  resolve(choices)
+                }
+              })
+            })
+          }
         },
         {
           type: 'confirm',
@@ -254,6 +277,13 @@ class FF {
           when: function (answers) {
             return answers.messagep
           }
+        },
+        {
+          type: 'list',
+          name: 'privacy',
+          message: 'Who can see this?',
+          when: (answers) => answers.type !== 'other',
+          choices: privacyEnum
         }
       ]
       inquirer.prompt(questions).then(function (answers) {
@@ -263,10 +293,19 @@ class FF {
         if (answers.link) {
           opts.link = answers.link
         }
+        if (answers.privacy) {
+          opts.privacy = { value: answers.privacy }
+        }
         if (answers.type === 'other') {
           page = answers.page
+          let matches = page.match(/ \[(\d+)\]/)
+          if (matches) {
+            page = matches[1]
+          }
           delete opts.privacy
+          opts.page = page
         }
+        console.log(opts)
         callFB(argv, `/${page}/feed`, 'POST', opts)
       })
     } else {
@@ -422,7 +461,6 @@ if (!module.parent) {
           describe: 'Countries to restrict this post to.',
           type: 'array'
         })
-      
     }, FF.post)
     .command('updatepost <postId>', 'Update a post', noOpts, FF.updatepost)
     .command('page <pageId>', 'Get info on a page', noOpts, FF.page)
