@@ -139,6 +139,7 @@ class FF {
       process.exit(1)
     })
     ws.on('message', function (data, flags) {
+
       const msgs = data.split(' ')
       switch (msgs[0]) {
         case 'url':
@@ -150,6 +151,11 @@ class FF {
           ws.close()
           console.log(`Token saved to ${argv.tokenfile}`)
           process.exit()
+        case 'error':
+          ws.close()
+          console.error(data);
+          process.exit()
+
       }
     })
   }
