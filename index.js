@@ -154,7 +154,7 @@ class FF {
         case 'error':
           ws.close()
           console.error(data);
-          process.exit()
+          process.exit(1)
 
       }
     })
